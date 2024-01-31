@@ -1,0 +1,141 @@
+kind: kapeta://kapeta/block-type-service:0.0.2
+metadata:
+  name: soren_mathiasen/sample-java-chat-messages-service
+  title: Messages Service
+  visibility: private
+spec:
+  entities:
+    types:
+      - type: dto
+        name: Message
+        description: null
+        properties:
+          id:
+            type: string
+            description: null
+            secret: false
+            required: false
+            global: false
+          text:
+            type: string
+            description: null
+            secret: false
+            required: false
+            global: false
+          createdAt:
+            type: date
+            description: null
+            secret: false
+            required: false
+            global: false
+          authorName:
+            type: string
+            description: null
+            secret: false
+            required: false
+            global: false
+      - type: dto
+        name: CreateMessage
+        description: null
+        properties:
+          text:
+            type: string
+            description: null
+            secret: false
+            required: false
+            global: false
+          authorName:
+            type: string
+            description: null
+            secret: false
+            required: false
+            global: false
+    source:
+      type: kapeta-dsl
+      value: |
+        Message {
+            id: string
+            text: string
+            createdAt: date
+            authorName: string
+        }
+
+        CreateMessage {
+            text: string
+            authorName: string
+        }
+  providers:
+    - kind: kapeta://kapeta/resource-type-rest-api:0.0.3
+      metadata:
+        name: messages
+      spec:
+        port:
+          name: rest
+          type: rest
+        methods:
+          getMessages:
+            responseType:
+              ref: Message[]
+            method: GET
+            path: /messages
+            description: Get all messages
+            arguments: {}
+          addMessage:
+            responseType:
+              ref: Message
+            method: POST
+            path: /messages
+            description: Add message
+            arguments:
+              message:
+                ref: CreateMessage
+                transport: BODY
+          deleteMessage:
+            responseType:
+              type: void
+            method: DELETE
+            path: /messages/{id}
+            description: Delete message
+            arguments:
+              id:
+                type: string
+                transport: PATH
+          deleteAllMessages:
+            responseType:
+              type: void
+            method: DELETE
+            path: /messages
+            description: Delete all messages
+            arguments: {}
+        source:
+          type: kapeta-dsl
+          value: |
+            //Get all messages
+            @GET("/messages")
+            getMessages(): Message[]
+
+            //Add message
+            @POST("/messages")
+            addMessage(@Body message:CreateMessage): Message
+
+            //Delete message
+            @DELETE("/messages/{id}")
+            deleteMessage(@Path id:string): void
+
+
+            //Delete all messages
+            @DELETE("/messages")
+            deleteAllMessages(): void
+  consumers:
+    - kind: kapeta://kapeta/resource-type-mongodb:0.0.1
+      metadata:
+        name: messages
+      spec:
+        port:
+          type: mongodb
+  target:
+    kind: kapeta://kapeta/language-target-java-spring-boot:0.3.1
+    options:
+      basePackage: com.kapeta.sample
+      groupId: com.kapeta
+      artifactId: sample-chat-messages-service

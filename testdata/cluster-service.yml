@@ -1,0 +1,111 @@
+cluster:
+  port: "35100"
+  host: 127.0.0.1
+docker: {}
+environment: production
+services:
+  kapeta://sorenmat/sample-java-chat-plan:local:
+    18f559f7-5dd9-40c1-a160-14bf9606141e:
+      http:
+        port: 40000
+    kapeta/resource-type-mongodb:
+      mongodb:
+        port: 40001
+  "":
+    "":
+      http:
+        port: 40002
+  kapeta://soren_mathiasen/go-go-gadget:local:
+    bb713f13-8797-464f-a04a-f616f2c4cc0b:
+      http:
+        port: 40003
+    ce86b032-b899-4bac-a43c-448dd7f934f5:
+      http:
+        port: 40004
+    d640d39a-aeb0-47e8-b6f0-5621940700bc:
+      http:
+        port: 40005
+  kapeta://sorenmat/go-sample:local:
+    b2a05a9a-8bcb-4afd-80b1-0416a8f26557:
+      http:
+        port: 40006
+config:
+  kapeta://sorenmat/sample-java-chat-plan:local:
+    18f559f7-5dd9-40c1-a160-14bf9606141e: {}
+  kapeta://soren_mathiasen/go-go-gadget:local:
+    bb713f13-8797-464f-a04a-f616f2c4cc0b: {}
+    ce86b032-b899-4bac-a43c-448dd7f934f5: {}
+    d640d39a-aeb0-47e8-b6f0-5621940700bc: {}
+  kapeta://sorenmat/go-sample:local:
+    b2a05a9a-8bcb-4afd-80b1-0416a8f26557: {}
+instances:
+  - systemId: kapeta://sorenmat/sample-java-chat-plan:local
+    instanceId: 18f559f7-5dd9-40c1-a160-14bf9606141e
+    ref: kapeta://sorenmat/sample-java-chat-messages-service:local
+    name: sorenmat/sample-java-chat-messages-service
+    desiredStatus: stop
+    owner: internal
+    type: docker
+    status: stopped
+    startedAt: 1703232394051
+    address: http://127.0.0.1:40000/
+    pid: 55ee5680fdf6d861d3391678cfb507cd7f754a9c1877a94b6b1afc845f62fc60
+    health: null
+    portType: rest
+  - systemId: kapeta://soren_mathiasen/go-go-gadget:local
+    instanceId: bb713f13-8797-464f-a04a-f616f2c4cc0b
+    ref: kapeta://soren_mathiasen/go-backend:local
+    name: soren_mathiasen/go-backend
+    desiredStatus: stop
+    owner: internal
+    type: unknown
+    status: stopped
+    startedAt: 1706105695211
+    address: http://127.0.0.1:40003/
+    health: http://127.0.0.1:40003/.kapeta/health
+    pid: null
+    portType: http
+    errorMessage: Cannot read properties of undefined (reading 'startsWith')
+  - systemId: kapeta://soren_mathiasen/go-go-gadget:local
+    instanceId: ce86b032-b899-4bac-a43c-448dd7f934f5
+    ref: kapeta://soren_mathiasen/new-block-type-service-1:local
+    name: soren_mathiasen/new-block-type-service-1
+    desiredStatus: stop
+    owner: internal
+    type: docker
+    status: stopped
+    startedAt: 1706125502262
+    address: http://127.0.0.1:40004/
+    health: http://127.0.0.1:40004/.kapeta/health
+    pid: 152e301c0f9932917cf838eeb9652667e8e05f29f0276c67d8e2a269ac911538
+    portType: http
+  - systemId: kapeta://soren_mathiasen/go-go-gadget:local
+    instanceId: d640d39a-aeb0-47e8-b6f0-5621940700bc
+    ref: kapeta://soren_mathiasen/new-block-type-service-2:local
+    name: soren_mathiasen/new-block-type-service-2
+    desiredStatus: stop
+    owner: internal
+    type: docker
+    status: stopped
+    startedAt: 1706125177042
+    address: http://127.0.0.1:40005/
+    health: http://127.0.0.1:40005/.kapeta/health
+    pid: 2223cc00b9c064fbeeb8ff3da984d77644e6b58264236e31d8e77ee1e491d4f8
+    portType: http
+  - systemId: kapeta://sorenmat/go-sample:local
+    instanceId: b2a05a9a-8bcb-4afd-80b1-0416a8f26557
+    ref: kapeta://sorenmat/super-go-service:local
+    name: sorenmat/super-go-service
+    desiredStatus: stop
+    owner: internal
+    type: docker
+    status: stopped
+    startedAt: 1706125729718
+    address: http://127.0.0.1:40006/
+    health: http://127.0.0.1:40006/.kapeta/health
+    pid: 2c13a56e45028763bc9b6af3e05e669ffb157d4c054f69d6a3a773f373d20938
+    portType: http
+filesystem:
+  project_root: /home/smo/KapetaProjects
+app:
+  release_channel: beta
