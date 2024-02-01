@@ -16,6 +16,14 @@ func hostAndFromURL(url string) (string, string) {
 func TestInit(t *testing.T) {
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		_, _ = w.Write([]byte("40004"))
 	}))
 	defer srv.Close()
@@ -62,6 +70,14 @@ func TestInit(t *testing.T) {
 
 func TestGetOrDefault(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		_, _ = w.Write([]byte("40004"))
 	}))
 	defer srv.Close()

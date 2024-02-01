@@ -137,12 +137,7 @@ func Init(blockDir string) (providers.ConfigProvider, error) {
 		provider = providers.NewKubernetesConfigProvider(blockRef, systemID, instanceID, blockDefinition)
 
 	case "development", "dev", "local":
-		localProvider := providers.NewLocalConfigProvider(blockRef, systemID, instanceID, blockDefinition)
-		// Only relevant locally
-		if err := localProvider.RegisterInstanceWithLocalClusterService(); err != nil {
-			return nil, err
-		}
-		provider = localProvider
+		provider = providers.NewLocalConfigProvider(blockRef, systemID, instanceID, blockDefinition)
 
 	default:
 		return nil, fmt.Errorf("unknown environment: %s", systemType)

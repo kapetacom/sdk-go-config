@@ -40,7 +40,7 @@ type LocalConfigProvider struct {
 
 // NewLocalConfigProvider creates an instance of LocalConfigProvider
 func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) *LocalConfigProvider {
-	return &LocalConfigProvider{
+	localProvider := &LocalConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
 			BlockRef:        blockRef,
 			SystemID:        systemID,
@@ -50,7 +50,14 @@ func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefiniti
 		configuration: make(map[string]interface{}),
 		cfg:           cfg.NewClusterConfig(),
 	}
-
+	if err := localProvider.ResolveIdentity(); err != nil {
+		panic(fmt.Errorf("failed to resolve identity: %w", err))
+	}
+	// Only relevant locally
+	if err := localProvider.RegisterInstanceWithLocalClusterService(); err != nil {
+		panic(fmt.Errorf("failed to register instance: %w", err))
+	}
+	return localProvider
 }
 
 // ResolveIdentity resolves and verifies system and instance ID
