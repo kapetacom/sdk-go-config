@@ -19,9 +19,16 @@ func hostAndFromURL(url string) (string, string) {
 }
 func TestLocal(t *testing.T) {
 	// Mock environment variables for testing
-	provider := NewLocalConfigProvider("kapeta/block-type-gateway-http", "systemID", "instanceID", map[string]interface{}{})
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"systemID\", \"instanceId\": \"instanceID\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		_, _ = w.Write([]byte("40004"))
 	}))
 	defer srv.Close()
@@ -32,6 +39,7 @@ func TestLocal(t *testing.T) {
 	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_HOST")
 	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_PORT")
 
+	provider := NewLocalConfigProvider("kapeta/block-type-gateway-http", "systemID", "instanceID", map[string]interface{}{})
 	serverPort, err := provider.GetServerPort("http")
 	assert.NoError(t, err)
 	assert.Equal(t, "40004", serverPort)
@@ -45,6 +53,24 @@ func TestCreateLocalConfigProvider(t *testing.T) {
 		"type": "local",
 	}
 
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
+		_, _ = w.Write([]byte("40004"))
+	}))
+	defer srv.Close()
+
+	host, port := hostAndFromURL(srv.URL)
+	os.Setenv("KAPETA_LOCAL_CLUSTER_HOST", host)
+	os.Setenv("KAPETA_LOCAL_CLUSTER_PORT", port)
+	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_HOST")
+	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_PORT")
 	provider := NewLocalConfigProvider(blockRef, systemID, instanceID, blockDefinition)
 
 	assert.Equal(t, blockRef, provider.GetBlockReference())
@@ -64,6 +90,25 @@ func TestResolveIdentity(t *testing.T) {
 		os.Unsetenv("KAPETA_SYSTEM")
 		os.Unsetenv("KAPETA_INSTANCE")
 	}()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
+		_, _ = w.Write([]byte("40004"))
+	}))
+	defer srv.Close()
+
+	host, port := hostAndFromURL(srv.URL)
+	os.Setenv("KAPETA_LOCAL_CLUSTER_HOST", host)
+	os.Setenv("KAPETA_LOCAL_CLUSTER_PORT", port)
+	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_HOST")
+	defer os.Unsetenv("KAPETA_LOCAL_CLUSTER_PORT")
 	provider := NewLocalConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
 		"type": "local",
 	})
@@ -75,6 +120,14 @@ func TestResolveIdentity(t *testing.T) {
 func TestLoadConfiguration(t *testing.T) {
 	// create test server that return the correct values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		if strings.HasSuffix(r.URL.Path, "/rest") {
 			_, _ = w.Write([]byte("8080"))
 		} else if strings.HasSuffix(r.URL.Path, "/grpc") {
@@ -110,6 +163,14 @@ func TestLoadConfiguration(t *testing.T) {
 func TestGetServiceAddress1(t *testing.T) {
 	// create test server that return the correct values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		if strings.Contains(r.URL.Path, "baz") {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
@@ -152,6 +213,14 @@ func TestGetServiceAddress1(t *testing.T) {
 func TestGetInstanceHost1(t *testing.T) {
 	// create test server that return the correct values
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/identity") {
+			_, _ = w.Write([]byte("{\"systemId\": \"system-id\", \"instanceId\": \"instance-id\"}"))
+			return
+		}
+		if strings.HasSuffix(r.URL.Path, "/instance") {
+			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
+			return
+		}
 		if strings.Contains(r.URL.Path, "system-id/unknown-instance-id") {
 			w.WriteHeader(http.StatusInternalServerError)
 			return
