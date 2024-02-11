@@ -72,7 +72,7 @@ func TestNewKubernetesConfigProvider(t *testing.T) {
 	assert.Equal(t, "kubernetes", provider.GetProviderId())
 }
 
-func TestGetServerPort(t *testing.T) {
+func TestK8sGetServerPort(t *testing.T) {
 	os.Setenv("KAPETA_PROVIDER_PORT_REST", "8080")
 	os.Setenv("KAPETA_PROVIDER_PORT_GRPC", "8081")
 
@@ -93,7 +93,7 @@ func TestGetServerPort(t *testing.T) {
 	assert.Equal(t, "8080", port)
 }
 
-func TestGetServerHost(t *testing.T) {
+func TestK8sGetServerHost(t *testing.T) {
 	os.Setenv("KAPETA_PROVIDER_HOST", "0.0.0.0")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
@@ -105,7 +105,7 @@ func TestGetServerHost(t *testing.T) {
 	assert.Equal(t, "0.0.0.0", host)
 }
 
-func TestGetServiceAddress(t *testing.T) {
+func TestK8sGetServiceAddress(t *testing.T) {
 	os.Setenv("KAPETA_CONSUMER_SERVICE_FOO_REST", "10.0.0.1:8080")
 	os.Setenv("KAPETA_CONSUMER_SERVICE_BAR_GRPC", "10.0.0.2:8081")
 
@@ -126,7 +126,7 @@ func TestGetServiceAddress(t *testing.T) {
 	assert.Equal(t, "missing environment variable for internal resource: KAPETA_CONSUMER_SERVICE_BAZ_REST", err.Error())
 }
 
-func TestGetResourceInfo(t *testing.T) {
+func TestK8sGetResourceInfo(t *testing.T) {
 	os.Setenv("KAPETA_CONSUMER_RESOURCE_FOO_REST", "{\"host\": \"10.0.0.1\", \"port\": 8080}")
 	os.Setenv("KAPETA_CONSUMER_RESOURCE_BAR_GRPC", "{\"host\": \"10.0.0.2\", \"port\": 8081}")
 
@@ -149,7 +149,7 @@ func TestGetResourceInfo(t *testing.T) {
 	assert.Equal(t, "missing environment variable for operator resource: KAPETA_CONSUMER_RESOURCE_BAZ_REST", err.Error())
 }
 
-func TestGet(t *testing.T) {
+func TestK8sGet(t *testing.T) {
 	os.Setenv("KAPETA_INSTANCE_CONFIG", "{\"foo\": \"bar\"}")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
@@ -163,7 +163,7 @@ func TestGet(t *testing.T) {
 	assert.Nil(t, value)
 }
 
-func TestGetOrDefault(t *testing.T) {
+func TestK8sGetOrDefault(t *testing.T) {
 	os.Setenv("KAPETA_INSTANCE_CONFIG", "{\"foo\": \"bar\"}")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
@@ -177,7 +177,7 @@ func TestGetOrDefault(t *testing.T) {
 	assert.Equal(t, "qux", value)
 }
 
-func TestGetInstanceHost(t *testing.T) {
+func TestK8sGetInstanceHost(t *testing.T) {
 	os.Setenv("KAPETA_BLOCK_HOSTS", "{\"instance-id\": \"10.0.0.1\"}")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
@@ -191,4 +191,76 @@ func TestGetInstanceHost(t *testing.T) {
 	_, err = provider.GetInstanceHost("unknown-instance-id")
 	assert.Error(t, err)
 	assert.Equal(t, "unknown instance id when resolving host: unknown-instance-id", err.Error())
+}
+
+func TestK8sGetInstanceForConsumer(t *testing.T) {
+	envVar := "KAPETA_INSTANCE_FOR_CONSUMER_TESTRESOURCE"
+	os.Setenv(envVar, "{\"instanceId\": \"instance-id\", \"block\": {\"ref\": \"block-ref\"}, \"connections\": []}")
+	defer os.Unsetenv(envVar)
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{"type": "kubernetes"})
+
+	// Test with valid environment variable
+	blockDetails, err := provider.GetInstanceForConsumer("TestResource")
+	assert.NoError(t, err)
+	assert.NotNil(t, blockDetails)
+	assert.Equal(t, "instance-id", blockDetails.InstanceId)
+
+	// Test with invalid JSON in environment variable
+	os.Setenv(envVar, "invalid-json")
+	_, err = provider.GetInstanceForConsumer("TestResource")
+	assert.Error(t, err)
+
+	// Test with missing environment variable
+	os.Unsetenv(envVar)
+	_, err = provider.GetInstanceForConsumer("TestResource")
+	assert.Error(t, err)
+}
+
+func TestK8sGetInstanceOperator(t *testing.T) {
+	envVar := "KAPETA_INSTANCE_OPERATOR_12E0023C_0814_402F_9C62_25A7C1FCD906"
+	os.Setenv(envVar, "{\"hostname\": \"test-host\", \"ports\": {\"http\": {\"port\": 80}}}")
+	defer os.Unsetenv(envVar)
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{"type": "kubernetes"})
+
+	// Test with valid environment variable
+	instanceOperator, err := provider.GetInstanceOperator("12E0023C-0814-402F-9C62-25A7C1FCD906")
+	assert.NoError(t, err)
+	assert.NotNil(t, instanceOperator)
+	assert.Equal(t, "test-host", instanceOperator.Hostname)
+	assert.Equal(t, 80, instanceOperator.Ports["http"].Port)
+
+	// Test with invalid JSON
+	os.Setenv(envVar, "invalid-json")
+	_, err = provider.GetInstanceOperator("instanceid")
+	assert.Error(t, err)
+
+	// Test with missing environment variable
+	os.Unsetenv(envVar)
+	_, err = provider.GetInstanceOperator("instanceid")
+	assert.Error(t, err)
+}
+
+func TestK8sGetInstancesForProvider(t *testing.T) {
+	envVar := "KAPETA_INSTANCES_FOR_PROVIDER_TESTRESOURCE"
+	os.Setenv(envVar, "[{\"instanceId\": \"instance-id-1\", \"block\": {\"ref\": \"block-ref-1\"}}, {\"instanceId\": \"instance-id-2\", \"block\": {\"ref\": \"block-ref-2\"}}]")
+	defer os.Unsetenv(envVar)
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{"type": "kubernetes"})
+
+	// Test with valid environment variable
+	instances, err := provider.GetInstancesForProvider("TestResource")
+	assert.NoError(t, err)
+	assert.Len(t, instances, 2)
+
+	// Test with invalid JSON
+	os.Setenv(envVar, "invalid-json")
+	_, err = provider.GetInstancesForProvider("TestResource")
+	assert.Error(t, err)
+
+	// Test with missing environment variable
+	os.Unsetenv(envVar)
+	_, err = provider.GetInstancesForProvider("TestResource")
+	assert.Error(t, err)
 }
