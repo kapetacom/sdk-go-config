@@ -258,17 +258,15 @@ func TestLocalGetInstanceOperator(t *testing.T) {
 	assert.Len(t, operator.Ports, 2)
 
 	if port, ok := operator.Ports["rest"]; ok {
-		if port.Protocol != "http" || port.Port != 8080 {
-			t.Errorf("Expected REST port to be 8080/http, got %d/%s", port.Port, port.Protocol)
-		}
+		assert.Equal(t, "http", port.Protocol)
+		assert.Equal(t, 8080, port.Port)
 	} else {
 		t.Errorf("REST port not found")
 	}
 
 	if port, ok := operator.Ports["grpc"]; ok {
-		if port.Protocol != "grpc" || port.Port != 8081 {
-			t.Errorf("Expected gRPC port to be 8081/grpc, got %d/%s", port.Port, port.Protocol)
-		}
+		assert.Equal(t, "grpc", port.Protocol)
+		assert.Equal(t, 8081, port.Port)
 	} else {
 		t.Errorf("gRPC port not found")
 	}
