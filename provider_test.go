@@ -1,4 +1,4 @@
-package sdkgoconfig
+package config
 
 import (
 	"fmt"

@@ -3,6 +3,8 @@
 
 package providers
 
+import "github.com/kapetacom/schemas/packages/go/model"
+
 type ConfigProvider interface {
 	GetBlockDefinition() interface{}
 	GetBlockReference() string
@@ -16,6 +18,35 @@ type ConfigProvider interface {
 	GetProviderId() string
 	Get(path string) interface{}
 	GetOrDefault(path string, defaultValue interface{}) interface{}
+	GetInstanceForConsumer(resourceName string) (*BlockInstanceDetails, error)
+	GetInstanceOperator(instanceId string) (*InstanceOperator, error)
+	GetInstancesForProvider(resourceName string) ([]*BlockInstanceDetails, error)
+}
+
+type DefaultCredentials struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+type InstanceOperatorPort struct {
+	Protocol string `json:"protocol"`
+	Port     int    `json:"port"`
+}
+
+type InstanceOperator struct {
+	Hostname    string                          `json:"hostname"`
+	Ports       map[string]InstanceOperatorPort `json:"ports"`
+	Path        string                          `json:"path,omitempty"`
+	Query       string                          `json:"query,omitempty"`
+	Hash        string                          `json:"hash,omitempty"`
+	Credentials map[string]any                  `json:"credentials,omitempty"`
+	Options     map[string]any                  `json:"options,omitempty"`
+}
+
+type BlockInstanceDetails struct {
+	InstanceId  string              `json:"instanceId"`
+	Block       *model.Kind         `json:"block"`
+	Connections []*model.Connection `json:"connections"`
 }
 
 type InstanceValue struct {

@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/kapetacom/schemas/packages/go/model"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,11 +19,6 @@ import (
 	cfg "github.com/kapetacom/sdk-go-config/config"
 )
 
-type RequestOptions struct {
-	headers map[string]string
-	url     string
-}
-
 const (
 	KAPETA_ENVIRONMENT_TYPE   = "KAPETA_ENVIRONMENT_TYPE"
 	HEADER_KAPETA_BLOCK       = "X-Kapeta-Block"
@@ -31,11 +27,17 @@ const (
 	HEADER_KAPETA_ENVIRONMENT = "X-Kapeta-Environment"
 )
 
+type AssetWrapper[T any] struct {
+	Data *T `json:"data"`
+}
+
 // LocalConfigProvider struct represents the local config provider
 type LocalConfigProvider struct {
 	AbstractConfigProvider
 	configuration map[string]interface{}
 	cfg           *cfg.ClusterConfig
+	GetPlan       func() (*model.Plan, error)
+	GetKind       func(ref string) (*model.Kind, error)
 }
 
 // NewLocalConfigProvider creates an instance of LocalConfigProvider
@@ -50,6 +52,26 @@ func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefiniti
 		configuration: make(map[string]interface{}),
 		cfg:           cfg.NewClusterConfig(),
 	}
+
+	// These methods are properties, so we can override them in tests
+	localProvider.GetPlan = func() (*model.Plan, error) {
+		plan := &AssetWrapper[model.Plan]{}
+		err := localProvider.GetAsset(localProvider.SystemID, plan)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", localProvider.SystemID, err)
+		}
+		return plan.Data, nil
+	}
+
+	localProvider.GetKind = func(ref string) (*model.Kind, error) {
+		kind := &AssetWrapper[model.Kind]{}
+		err := localProvider.GetAsset(ref, kind)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", localProvider.SystemID, err)
+		}
+		return kind.Data, nil
+	}
+
 	if err := localProvider.ResolveIdentity(); err != nil {
 		panic(fmt.Errorf("failed to resolve identity: %w", err))
 	}
@@ -130,9 +152,13 @@ func (l *LocalConfigProvider) RegisterInstanceWithLocalClusterService() error {
 	body := map[string]interface{}{
 		"pid": os.Getpid(),
 	}
-	_, err := l.sendRequest(http.MethodPut, url, body, nil)
+	response, err := l.sendRequest(http.MethodPut, url, body, nil)
 	if err != nil {
 		return fmt.Errorf("failed to register instance: %w", err)
+	}
+	defer response.Body.Close()
+	if (response.StatusCode < 200) || (response.StatusCode > 299) {
+		return fmt.Errorf("failed to register instance: %d", response.StatusCode)
 	}
 	exitHandler := func() {
 		l.InstanceStopped()
@@ -263,8 +289,13 @@ func (l *LocalConfigProvider) sendRequest(method, url string, body interface{}, 
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	defaultHeaders := l.getDefaultHeaders()
+	for key, value := range defaultHeaders {
+		req.Header.Set(key, value)
+	}
+
 	for key, value := range headers {
-		req.Header.Add(key, value)
+		req.Header.Set(key, value)
 	}
 
 	client := &http.Client{}
@@ -277,21 +308,7 @@ func (l *LocalConfigProvider) sendRequest(method, url string, body interface{}, 
 }
 
 func (l *LocalConfigProvider) getRequest(url string) (string, error) {
-	opts := RequestOptions{
-		headers: map[string]string{
-			HEADER_KAPETA_ENVIRONMENT: "process",
-			HEADER_KAPETA_BLOCK:       l.BlockRef,
-			HEADER_KAPETA_SYSTEM:      l.SystemID,
-			HEADER_KAPETA_INSTANCE:    l.InstanceID,
-		},
-		url: url,
-	}
-	// override environment type if set in environment variable this is used when running in a container
-	if os.Getenv(KAPETA_ENVIRONMENT_TYPE) != "" {
-		opts.headers[HEADER_KAPETA_ENVIRONMENT] = os.Getenv(KAPETA_ENVIRONMENT_TYPE)
-	}
-
-	resp, err := l.sendRequest(http.MethodGet, opts.url, nil, opts.headers)
+	resp, err := l.sendRequest(http.MethodGet, url, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to send GET request: %w", err)
 	}
@@ -313,18 +330,23 @@ func (l *LocalConfigProvider) getRequest(url string) (string, error) {
 
 }
 
-func (l *LocalConfigProvider) getRequestRaw(url string) ([]byte, error) {
-	opts := RequestOptions{
-		headers: map[string]string{
-			HEADER_KAPETA_ENVIRONMENT: "process",
-			HEADER_KAPETA_BLOCK:       l.BlockRef,
-			HEADER_KAPETA_SYSTEM:      l.SystemID,
-			HEADER_KAPETA_INSTANCE:    l.InstanceID,
-		},
-		url: url,
+func (l *LocalConfigProvider) getDefaultHeaders() map[string]string {
+	out := map[string]string{
+		HEADER_KAPETA_ENVIRONMENT: "process",
+		HEADER_KAPETA_BLOCK:       l.BlockRef,
+		HEADER_KAPETA_SYSTEM:      l.SystemID,
+		HEADER_KAPETA_INSTANCE:    l.InstanceID,
 	}
 
-	resp, err := l.sendRequest(http.MethodGet, opts.url, nil, opts.headers)
+	if os.Getenv(KAPETA_ENVIRONMENT_TYPE) != "" {
+		out[HEADER_KAPETA_ENVIRONMENT] = os.Getenv(KAPETA_ENVIRONMENT_TYPE)
+	}
+
+	return out
+}
+
+func (l *LocalConfigProvider) getRequestRaw(url string) ([]byte, error) {
+	resp, err := l.sendRequest(http.MethodGet, url, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request: %w", err)
 	}
@@ -377,4 +399,142 @@ func (l *LocalConfigProvider) GetProviderId() string {
 
 func (l *LocalConfigProvider) Get(path string) interface{} {
 	return l.GetConfig(path)
+}
+
+func (l *LocalConfigProvider) GetInstanceOperator(instanceId string) (*InstanceOperator, error) {
+	fullUrl := fmt.Sprintf(
+		`%s/config/operator/%s`,
+		l.getClusterServiceBaseURL(),
+		l.encode(instanceId),
+	)
+	operator := &InstanceOperator{}
+	err := l.doRequestValue(fullUrl, operator)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operator: %w", err)
+	}
+	return operator, nil
+}
+
+func (l *LocalConfigProvider) GetInstanceForConsumer(resourceName string) (*BlockInstanceDetails, error) {
+	plan, err := l.GetPlan()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plan: %s, Error: %w", l.SystemID, err)
+	}
+
+	var connection *model.Connection
+	for _, conn := range plan.Spec.Connections {
+		if conn.Consumer.BlockId == l.InstanceID &&
+			conn.Consumer.ResourceName == resourceName {
+			connection = &conn
+			break
+		}
+	}
+
+	if connection == nil {
+		return nil, fmt.Errorf("could not find connection for consumer %s", resourceName)
+	}
+
+	var instance *model.BlockInstance // Assuming BlockInstance is a defined type
+	for _, b := range plan.Spec.Blocks {
+		if b.Id == connection.Provider.BlockId {
+			instance = &b
+			break
+		}
+	}
+
+	if instance == nil {
+		return nil, fmt.Errorf("could not find instance %s in plan", connection.Provider.BlockId)
+	}
+
+	block, err := l.GetKind(instance.Block.Ref)
+	if err != nil {
+		return nil, fmt.Errorf("could not find block %s in plan: %v", instance.Block.Ref, err)
+	}
+
+	return &BlockInstanceDetails{
+		InstanceId: connection.Provider.BlockId,
+		Connections: []*model.Connection{
+			connection,
+		},
+		Block: block,
+	}, nil
+}
+
+func (l *LocalConfigProvider) GetInstancesForProvider(resourceName string) ([]*BlockInstanceDetails, error) {
+	plan, err := l.GetPlan()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get plan: %s, Error: %w", l.SystemID, err)
+	}
+
+	blockDetails := make(map[string]*BlockInstanceDetails)
+
+	connections := make([]model.Connection, 0)
+	for _, connection := range plan.Spec.Connections {
+		if connection.Provider.BlockId == l.InstanceID &&
+			connection.Provider.ResourceName == resourceName {
+			connections = append(connections, connection)
+		}
+	}
+
+	for _, connection := range connections {
+		blockInstanceID := connection.Consumer.BlockId
+		if details, exists := blockDetails[blockInstanceID]; exists {
+			details.Connections = append(details.Connections, &connection)
+			blockDetails[blockInstanceID] = details
+			continue
+		}
+
+		var instance *model.BlockInstance
+		for _, b := range plan.Spec.Blocks {
+			if b.Id == blockInstanceID {
+				instance = &b
+				break
+			}
+		}
+		if instance == nil {
+			return nil, fmt.Errorf("could not find instance %s in plan", blockInstanceID)
+		}
+
+		block, err := l.GetKind(instance.Block.Ref)
+		if err != nil {
+			return nil, fmt.Errorf("could not find block %s in plan: %v", instance.Block.Ref, err)
+		}
+
+		blockDetails[blockInstanceID] = &BlockInstanceDetails{
+			InstanceId: blockInstanceID,
+			Connections: []*model.Connection{
+				&connection,
+			},
+			Block: block,
+		}
+	}
+
+	result := make([]*BlockInstanceDetails, 0)
+	for _, details := range blockDetails {
+		result = append(result, details)
+	}
+
+	return result, nil
+}
+
+func (l *LocalConfigProvider) GetAsset(ref string, value any) error {
+	fullUrl := fmt.Sprintf(
+		`%s/assets/read?ref=%s&ensure=false`,
+		l.getClusterServiceBaseURL(),
+		l.encode(ref),
+	)
+	return l.doRequestValue(fullUrl, value)
+}
+
+func (l *LocalConfigProvider) doRequestValue(fullUrl string, value any) error {
+	d, err := l.getRequestRaw(fullUrl)
+	if err != nil {
+		return fmt.Errorf("failed to get asset: %w", err)
+	}
+	err = json.Unmarshal(d, value)
+	if err != nil {
+		return fmt.Errorf("failed to decode response body: %w", err)
+	}
+
+	return nil
 }

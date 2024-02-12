@@ -155,3 +155,45 @@ func (k *KubernetesConfigProvider) GetInstanceHost(instanceID string) (string, e
 
 	return "", fmt.Errorf("unknown instance id when resolving host: %s", instanceID)
 }
+
+func (k *KubernetesConfigProvider) GetInstanceForConsumer(resourceName string) (*BlockInstanceDetails, error) {
+	envVar := fmt.Sprintf("KAPETA_INSTANCE_FOR_CONSUMER_%s", toEnvName(resourceName))
+	if value, exists := os.LookupEnv(envVar); exists {
+		blockDetails := &BlockInstanceDetails{}
+		err := json.Unmarshal([]byte(value), blockDetails)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON in environment variable: %s", envVar)
+		}
+		return blockDetails, nil
+	}
+
+	return nil, fmt.Errorf("missing environment variable for instance consumer: %s", envVar)
+}
+
+func (k *KubernetesConfigProvider) GetInstanceOperator(instanceId string) (*InstanceOperator, error) {
+	envVar := fmt.Sprintf("KAPETA_INSTANCE_OPERATOR_%s", toEnvName(instanceId))
+	if value, exists := os.LookupEnv(envVar); exists {
+		instanceOperator := &InstanceOperator{}
+		err := json.Unmarshal([]byte(value), instanceOperator)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON in environment variable: %s", envVar)
+		}
+		return instanceOperator, nil
+	}
+
+	return nil, fmt.Errorf("missing environment variable for instance consumer: %s", envVar)
+}
+
+func (k *KubernetesConfigProvider) GetInstancesForProvider(resourceName string) ([]*BlockInstanceDetails, error) {
+	envVar := fmt.Sprintf("KAPETA_INSTANCES_FOR_PROVIDER_%s", toEnvName(resourceName))
+	if value, exists := os.LookupEnv(envVar); exists {
+		instanceOperators := make([]*BlockInstanceDetails, 0)
+		err := json.Unmarshal([]byte(value), &instanceOperators)
+		if err != nil {
+			return nil, fmt.Errorf("invalid JSON in environment variable: %s", envVar)
+		}
+		return instanceOperators, nil
+	}
+
+	return nil, fmt.Errorf("missing environment variable for instance consumer: %s", envVar)
+}
