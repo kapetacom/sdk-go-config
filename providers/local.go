@@ -157,9 +157,13 @@ func (l *LocalConfigProvider) RegisterInstanceWithLocalClusterService() error {
 	body := map[string]interface{}{
 		"pid": os.Getpid(),
 	}
-	_, err := l.sendRequest(http.MethodPut, url, body, nil)
+	response, err := l.sendRequest(http.MethodPut, url, body, nil)
 	if err != nil {
 		return fmt.Errorf("failed to register instance: %w", err)
+	}
+	defer response.Body.Close()
+	if (response.StatusCode < 200) || (response.StatusCode > 299) {
+		return fmt.Errorf("failed to register instance: %d", response.StatusCode)
 	}
 	exitHandler := func() {
 		l.InstanceStopped()
@@ -290,8 +294,13 @@ func (l *LocalConfigProvider) sendRequest(method, url string, body interface{}, 
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
+	defaultHeaders := l.getDefaultHeaders()
+	for key, value := range defaultHeaders {
+		req.Header.Set(key, value)
+	}
+
 	for key, value := range headers {
-		req.Header.Add(key, value)
+		req.Header.Set(key, value)
 	}
 
 	client := &http.Client{}
@@ -304,21 +313,7 @@ func (l *LocalConfigProvider) sendRequest(method, url string, body interface{}, 
 }
 
 func (l *LocalConfigProvider) getRequest(url string) (string, error) {
-	opts := RequestOptions{
-		headers: map[string]string{
-			HEADER_KAPETA_ENVIRONMENT: "process",
-			HEADER_KAPETA_BLOCK:       l.BlockRef,
-			HEADER_KAPETA_SYSTEM:      l.SystemID,
-			HEADER_KAPETA_INSTANCE:    l.InstanceID,
-		},
-		url: url,
-	}
-	// override environment type if set in environment variable this is used when running in a container
-	if os.Getenv(KAPETA_ENVIRONMENT_TYPE) != "" {
-		opts.headers[HEADER_KAPETA_ENVIRONMENT] = os.Getenv(KAPETA_ENVIRONMENT_TYPE)
-	}
-
-	resp, err := l.sendRequest(http.MethodGet, opts.url, nil, opts.headers)
+	resp, err := l.sendRequest(http.MethodGet, url, nil, nil)
 	if err != nil {
 		return "", fmt.Errorf("failed to send GET request: %w", err)
 	}
@@ -340,18 +335,23 @@ func (l *LocalConfigProvider) getRequest(url string) (string, error) {
 
 }
 
-func (l *LocalConfigProvider) getRequestRaw(url string) ([]byte, error) {
-	opts := RequestOptions{
-		headers: map[string]string{
-			HEADER_KAPETA_ENVIRONMENT: "process",
-			HEADER_KAPETA_BLOCK:       l.BlockRef,
-			HEADER_KAPETA_SYSTEM:      l.SystemID,
-			HEADER_KAPETA_INSTANCE:    l.InstanceID,
-		},
-		url: url,
+func (l *LocalConfigProvider) getDefaultHeaders() map[string]string {
+	out := map[string]string{
+		HEADER_KAPETA_ENVIRONMENT: "process",
+		HEADER_KAPETA_BLOCK:       l.BlockRef,
+		HEADER_KAPETA_SYSTEM:      l.SystemID,
+		HEADER_KAPETA_INSTANCE:    l.InstanceID,
 	}
 
-	resp, err := l.sendRequest(http.MethodGet, opts.url, nil, opts.headers)
+	if os.Getenv(KAPETA_ENVIRONMENT_TYPE) != "" {
+		out[HEADER_KAPETA_ENVIRONMENT] = os.Getenv(KAPETA_ENVIRONMENT_TYPE)
+	}
+
+	return out
+}
+
+func (l *LocalConfigProvider) getRequestRaw(url string) ([]byte, error) {
+	resp, err := l.sendRequest(http.MethodGet, url, nil, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to send GET request: %w", err)
 	}
