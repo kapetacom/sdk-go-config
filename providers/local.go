@@ -19,11 +19,6 @@ import (
 	cfg "github.com/kapetacom/sdk-go-config/config"
 )
 
-type RequestOptions struct {
-	headers map[string]string
-	url     string
-}
-
 const (
 	KAPETA_ENVIRONMENT_TYPE   = "KAPETA_ENVIRONMENT_TYPE"
 	HEADER_KAPETA_BLOCK       = "X-Kapeta-Block"
