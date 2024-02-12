@@ -39,8 +39,8 @@ type InstanceOperator struct {
 	Path        string                          `json:"path,omitempty"`
 	Query       string                          `json:"query,omitempty"`
 	Hash        string                          `json:"hash,omitempty"`
-	Credentials any                             `json:"credentials,omitempty"`
-	Options     any                             `json:"options,omitempty"`
+	Credentials map[string]any                  `json:"credentials,omitempty"`
+	Options     map[string]any                  `json:"options,omitempty"`
 }
 
 type BlockInstanceDetails struct {

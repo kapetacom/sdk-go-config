@@ -1,4 +1,4 @@
-package sdkgoconfig
+package kapeta
 
 import (
 	"fmt"

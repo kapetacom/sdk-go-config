@@ -32,6 +32,10 @@ const (
 	HEADER_KAPETA_ENVIRONMENT = "X-Kapeta-Environment"
 )
 
+type AssetWrapper[T any] struct {
+	Data *T `json:"data"`
+}
+
 // LocalConfigProvider struct represents the local config provider
 type LocalConfigProvider struct {
 	AbstractConfigProvider
@@ -56,21 +60,21 @@ func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefiniti
 
 	// These methods are properties, so we can override them in tests
 	localProvider.GetPlan = func() (*model.Plan, error) {
-		plan := &model.Plan{}
-		err := localProvider.GetAsset(systemID, plan)
+		plan := &AssetWrapper[model.Plan]{}
+		err := localProvider.GetAsset(localProvider.SystemID, plan)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", systemID, err)
+			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", localProvider.SystemID, err)
 		}
-		return plan, nil
+		return plan.Data, nil
 	}
 
 	localProvider.GetKind = func(ref string) (*model.Kind, error) {
-		kind := &model.Kind{}
+		kind := &AssetWrapper[model.Kind]{}
 		err := localProvider.GetAsset(ref, kind)
 		if err != nil {
-			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", systemID, err)
+			return nil, fmt.Errorf("failed to get plan: %s, Error: %w", localProvider.SystemID, err)
 		}
-		return kind, nil
+		return kind.Data, nil
 	}
 
 	if err := localProvider.ResolveIdentity(); err != nil {
