@@ -451,7 +451,7 @@ func (l *LocalConfigProvider) GetInstanceForConsumer(resourceName string) (*Bloc
 		return nil, fmt.Errorf("could not find instance %s in plan", connection.Provider.BlockId)
 	}
 
-	block, err := l.GetKind(instance.Block.Ref) // Replace with actual function to get a block
+	block, err := l.GetKind(instance.Block.Ref)
 	if err != nil {
 		return nil, fmt.Errorf("could not find block %s in plan: %v", instance.Block.Ref, err)
 	}
