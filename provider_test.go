@@ -1,4 +1,4 @@
-package kapeta
+package config
 
 import (
 	"fmt"

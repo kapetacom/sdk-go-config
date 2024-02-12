@@ -1,7 +1,7 @@
 // Copyright 2023 Kapeta Inc.
 // SPDX-License-Identifier: MIT
 
-package kapeta
+package config
 
 import (
 	"bytes"

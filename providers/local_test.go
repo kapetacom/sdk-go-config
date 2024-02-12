@@ -457,6 +457,12 @@ func setupLocalTestServer(handler http.HandlerFunc) *httptest.Server {
 			_, _ = w.Write([]byte("{\"id\": \"instanceID\", \"host\": \"bla\"}"))
 			return
 		}
+
+		// Is hit when self-registering with local cluster service
+		if r.Method == "PUT" && strings.HasSuffix(r.URL.Path, "/instances") {
+			_, _ = w.Write([]byte("{}"))
+			return
+		}
 		handler(w, r)
 	}))
 
