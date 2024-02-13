@@ -68,7 +68,7 @@ type Identity struct {
 // ResourceInfo struct represents information about a resource
 type ResourceInfo struct {
 	Host        string                 `json:"host"`
-	Port        int                    `json:"port"`
+	Port        string                 `json:"port"`
 	Type        string                 `json:"type"`
 	Protocol    string                 `json:"protocol"`
 	Options     map[string]interface{} `json:"options"`

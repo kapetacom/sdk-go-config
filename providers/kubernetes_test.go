@@ -15,7 +15,7 @@ func TestKubernetesConfigProvider(t *testing.T) {
 	os.Setenv("KAPETA_PROVIDER_PORT_REST", "8080")
 	os.Setenv("KAPETA_PROVIDER_HOST", "localhost")
 	os.Setenv("KAPETA_CONSUMER_SERVICE_TEST_SERVICE_REST", "http://test-service:8080")
-	os.Setenv("KAPETA_CONSUMER_RESOURCE_TEST_RESOURCE_REST", `{"host": "test-resource", "port": 9090, "type": "test", "protocol": "http"}`)
+	os.Setenv("KAPETA_CONSUMER_RESOURCE_TEST_RESOURCE_REST", `{"host": "test-resource", "port": "9090", "type": "test", "protocol": "http"}`)
 	os.Setenv("KAPETA_INSTANCE_CONFIG", `{"exampleField": "exampleValue"}`)
 	os.Setenv("KAPETA_BLOCK_HOSTS", `{"test-instance": "test-host"}`)
 
@@ -127,8 +127,8 @@ func TestK8sGetServiceAddress(t *testing.T) {
 }
 
 func TestK8sGetResourceInfo(t *testing.T) {
-	os.Setenv("KAPETA_CONSUMER_RESOURCE_FOO_REST", "{\"host\": \"10.0.0.1\", \"port\": 8080}")
-	os.Setenv("KAPETA_CONSUMER_RESOURCE_BAR_GRPC", "{\"host\": \"10.0.0.2\", \"port\": 8081}")
+	os.Setenv("KAPETA_CONSUMER_RESOURCE_FOO_REST", "{\"host\": \"10.0.0.1\", \"port\": \"8080\"}")
+	os.Setenv("KAPETA_CONSUMER_RESOURCE_BAR_GRPC", "{\"host\": \"10.0.0.2\", \"port\": \"8081\"}")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
 		"type": "kubernetes",
@@ -137,12 +137,12 @@ func TestK8sGetResourceInfo(t *testing.T) {
 	info, err := provider.GetResourceInfo("foo", "rest", "foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", info.Host)
-	assert.Equal(t, 8080, info.Port)
+	assert.Equal(t, "8080", info.Port)
 
 	info, err = provider.GetResourceInfo("foo", "grpc", "bar")
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.2", info.Host)
-	assert.Equal(t, 8081, info.Port)
+	assert.Equal(t, "8081", info.Port)
 
 	_, err = provider.GetResourceInfo("foo", "rest", "baz")
 	assert.Error(t, err)
