@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/kapetacom/schemas/packages/go/model"
 	"io"
 	"net/http"
 	"net/url"
@@ -15,6 +14,8 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"github.com/kapetacom/schemas/packages/go/model"
 
 	cfg "github.com/kapetacom/sdk-go-config/config"
 )
@@ -158,7 +159,8 @@ func (l *LocalConfigProvider) RegisterInstanceWithLocalClusterService() error {
 	}
 	defer response.Body.Close()
 	if (response.StatusCode < 200) || (response.StatusCode > 299) {
-		return fmt.Errorf("failed to register instance: %d", response.StatusCode)
+		d, _ := io.ReadAll(response.Body)
+		return fmt.Errorf("failed to register instance: %v\n\t%v", response.Status, string(d))
 	}
 	exitHandler := func() {
 		l.InstanceStopped()
@@ -196,7 +198,7 @@ func (l *LocalConfigProvider) GetResourceInfo(resourceType, portType, resourceNa
 	resourceInfo := &ResourceInfo{}
 	d, err := l.getRequestRaw(url)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get resource info: %w", err)
+		return nil, fmt.Errorf("failed to get resource info: %w from %v", err, url)
 	}
 	err = json.Unmarshal(d, resourceInfo)
 	if err != nil {
