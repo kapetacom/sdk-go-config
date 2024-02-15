@@ -40,6 +40,14 @@ const (
 	defaultInstanceID = ""
 )
 
+// GetProvider returns the configured provider or panics if it's not initialized
+func GetProvider() providers.ConfigProvider {
+	if CONFIG.provider == nil {
+		panic("Configuration not yet initialized, call Init('path to kapeta.yml') first")
+	}
+	return CONFIG.provider
+}
+
 func getEnvOrDefault(envVarName, defaultValue string) string {
 	if value, exists := os.LookupEnv(envVarName); exists {
 		return value

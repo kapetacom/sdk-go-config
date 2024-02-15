@@ -7,6 +7,8 @@ import (
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/kapetacom/sdk-go-config/providers"
 )
 
 func hostAndFromURL(url string) (string, string) {
@@ -124,4 +126,24 @@ func TestGetOrDefault(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetProvider(t *testing.T) {
+	t.Run("provider is nil", func(t *testing.T) {
+		defer func() {
+			if r := recover(); r == nil {
+				t.Errorf("The code did not panic")
+			}
+		}()
+		CONFIG.provider = nil
+		_ = GetProvider()
+	})
+
+	t.Run("provider is not nil", func(t *testing.T) {
+		CONFIG.provider = &providers.KubernetesConfigProvider{}
+		got := GetProvider()
+		if got == nil {
+			t.Errorf("GetProvider() = nil, want not nil")
+		}
+	})
 }
