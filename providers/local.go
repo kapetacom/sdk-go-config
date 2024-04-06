@@ -43,12 +43,15 @@ type LocalConfigProvider struct {
 
 // NewLocalConfigProvider creates an instance of LocalConfigProvider
 func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) *LocalConfigProvider {
+	envConfig, _ := cfg.ReadConfigFile()
+
 	localProvider := &LocalConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
-			BlockRef:        blockRef,
-			SystemID:        systemID,
-			InstanceID:      instanceID,
-			BlockDefinition: blockDefinition,
+			BlockRef:                 blockRef,
+			SystemID:                 systemID,
+			InstanceID:               instanceID,
+			BlockDefinition:          blockDefinition,
+			EnvironmentConfiguration: envConfig,
 		},
 		configuration: make(map[string]interface{}),
 		cfg:           cfg.NewClusterConfig(),
@@ -122,7 +125,7 @@ func (l *LocalConfigProvider) GetServerPort(portType string) (string, error) {
 	}
 
 	envVar := fmt.Sprintf("KAPETA_LOCAL_SERVER_PORT_%s", strings.ToUpper(portType))
-	if port, ok := os.LookupEnv(envVar); ok {
+	if port, ok := l.LookupEnv(envVar); ok {
 		return port, nil
 	}
 
@@ -135,8 +138,8 @@ func (l *LocalConfigProvider) GetServerPort(portType string) (string, error) {
 	return port, nil
 }
 
-func getEnvWithDefault(envVar, defaultValue string) string {
-	if value, ok := os.LookupEnv(envVar); ok {
+func (l *LocalConfigProvider) getEnvWithDefault(envVar, defaultValue string) string {
+	if value, ok := l.LookupEnv(envVar); ok {
 		return value
 	}
 	return defaultValue
@@ -144,7 +147,7 @@ func getEnvWithDefault(envVar, defaultValue string) string {
 
 // GetServerHost gets the server host for the current instance
 func (l *LocalConfigProvider) GetServerHost() (string, error) {
-	return getEnvWithDefault("KAPETA_LOCAL_SERVER", "127.0.0.1"), nil
+	return l.getEnvWithDefault("KAPETA_LOCAL_SERVER", "127.0.0.1"), nil
 }
 
 // RegisterInstanceWithLocalClusterService registers the instance with the cluster service

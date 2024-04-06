@@ -3,7 +3,10 @@
 
 package providers
 
-import "github.com/kapetacom/schemas/packages/go/model"
+import (
+	"github.com/kapetacom/schemas/packages/go/model"
+	"os"
+)
 
 type ConfigProvider interface {
 	GetBlockDefinition() interface{}
@@ -76,10 +79,11 @@ type ResourceInfo struct {
 }
 
 type AbstractConfigProvider struct {
-	BlockRef        string                 `json:"blockRef"`
-	SystemID        string                 `json:"systemId"`
-	InstanceID      string                 `json:"instanceId"`
-	BlockDefinition map[string]interface{} `json:"blockDefinition"`
+	BlockRef                 string                 `json:"blockRef"`
+	SystemID                 string                 `json:"systemId"`
+	InstanceID               string                 `json:"instanceId"`
+	BlockDefinition          map[string]interface{} `json:"blockDefinition"`
+	EnvironmentConfiguration map[string]string      `json:"environmentConfiguration"`
 }
 
 func (a *AbstractConfigProvider) GetBlockDefinition() interface{} {
@@ -101,4 +105,13 @@ func (a *AbstractConfigProvider) GetInstanceId() string {
 func (a *AbstractConfigProvider) SetIdentity(systemID, instanceID string) {
 	a.SystemID = systemID
 	a.InstanceID = instanceID
+}
+
+func (a *AbstractConfigProvider) LookupEnv(name string) (string, bool) {
+	if value, exists := os.LookupEnv(name); exists {
+		return value, true
+	}
+
+	value := a.EnvironmentConfiguration[name]
+	return value, value != ""
 }
