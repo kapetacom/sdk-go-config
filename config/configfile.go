@@ -5,7 +5,6 @@ package config
 
 import (
 	"encoding/json"
-	"io"
 	"os"
 )
 
@@ -25,14 +24,10 @@ func ReadConfigFile() (map[string]string, error) {
 	}
 	defer file.Close()
 
-	// Read the file's content
-	byteValue, err := io.ReadAll(file)
-	if err != nil {
-		panic(err)
-	}
+	decoder := json.NewDecoder(file)
 
-	// Unmarshal the JSON data into the map
-	err = json.Unmarshal(byteValue, &out)
+	err = decoder.Decode(&out)
+
 	if err != nil {
 		return out, err
 	}
