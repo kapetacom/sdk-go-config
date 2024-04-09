@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
+	cfg "github.com/kapetacom/sdk-go-config/config"
 	"strings"
 )
 
@@ -33,12 +33,14 @@ type KubernetesConfigProvider struct {
 
 // NewKubernetesConfigProvider creates a new instance of KubernetesConfigProvider
 func NewKubernetesConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) ConfigProvider {
+	envConfig := cfg.ReadConfigFile()
 	return &KubernetesConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
-			BlockRef:        blockRef,
-			SystemID:        systemID,
-			InstanceID:      instanceID,
-			BlockDefinition: blockDefinition,
+			BlockRef:                 blockRef,
+			SystemID:                 systemID,
+			InstanceID:               instanceID,
+			BlockDefinition:          blockDefinition,
+			EnvironmentConfiguration: envConfig,
 		},
 		configuration: nil,
 	}
@@ -51,7 +53,7 @@ func (k *KubernetesConfigProvider) GetServerPort(portType string) (string, error
 	}
 
 	envVar := fmt.Sprintf("KAPETA_PROVIDER_PORT_%s", toEnvName(portType))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		return value, nil
 	}
 
@@ -61,7 +63,7 @@ func (k *KubernetesConfigProvider) GetServerPort(portType string) (string, error
 // GetServerHost returns the host for the current process
 func (k *KubernetesConfigProvider) GetServerHost() (string, error) {
 	envVar := "KAPETA_PROVIDER_HOST"
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		return value, nil
 	}
 
@@ -72,7 +74,7 @@ func (k *KubernetesConfigProvider) GetServerHost() (string, error) {
 // GetServiceAddress returns the service address for the given resource name and port type
 func (k *KubernetesConfigProvider) GetServiceAddress(resourceName, portType string) (string, error) {
 	envVar := fmt.Sprintf("KAPETA_CONSUMER_SERVICE_%s_%s", toEnvName(resourceName), toEnvName(portType))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		return value, nil
 	}
 
@@ -82,7 +84,7 @@ func (k *KubernetesConfigProvider) GetServiceAddress(resourceName, portType stri
 // GetResourceInfo returns the resource info for the given resource type, port type, and resource name
 func (k *KubernetesConfigProvider) GetResourceInfo(resourceType, portType, resourceName string) (*ResourceInfo, error) {
 	envVar := fmt.Sprintf("KAPETA_CONSUMER_RESOURCE_%s_%s", toEnvName(resourceName), toEnvName(portType))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		var resourceInfo ResourceInfo
 		err := json.Unmarshal([]byte(value), &resourceInfo)
 		if err != nil {
@@ -103,7 +105,7 @@ func (k *KubernetesConfigProvider) GetProviderId() string {
 func (k *KubernetesConfigProvider) getConfiguration(path string, defaultValue interface{}) interface{} {
 	if k.configuration == nil {
 		envVar := "KAPETA_INSTANCE_CONFIG"
-		if value, exists := os.LookupEnv(envVar); exists {
+		if value, exists := k.LookupEnv(envVar); exists {
 			err := json.Unmarshal([]byte(value), &k.configuration)
 			if err != nil {
 				panic(fmt.Sprintf("Invalid JSON in environment variable: %s", envVar))
@@ -139,7 +141,7 @@ func (k *KubernetesConfigProvider) GetOrDefault(path string, defaultValue interf
 // GetInstanceHost returns the hostname for the given instance ID
 func (k *KubernetesConfigProvider) GetInstanceHost(instanceID string) (string, error) {
 	if k.instanceHosts == nil {
-		if blockHosts, exists := os.LookupEnv("KAPETA_BLOCK_HOSTS"); exists {
+		if blockHosts, exists := k.LookupEnv("KAPETA_BLOCK_HOSTS"); exists {
 			err := json.Unmarshal([]byte(blockHosts), &k.instanceHosts)
 			if err != nil {
 				panic("Invalid JSON in environment variable: KAPETA_BLOCK_HOSTS")
@@ -158,7 +160,7 @@ func (k *KubernetesConfigProvider) GetInstanceHost(instanceID string) (string, e
 
 func (k *KubernetesConfigProvider) GetInstanceForConsumer(resourceName string) (*BlockInstanceDetails, error) {
 	envVar := fmt.Sprintf("KAPETA_INSTANCE_FOR_CONSUMER_%s", toEnvName(resourceName))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		blockDetails := &BlockInstanceDetails{}
 		err := json.Unmarshal([]byte(value), blockDetails)
 		if err != nil {
@@ -172,7 +174,7 @@ func (k *KubernetesConfigProvider) GetInstanceForConsumer(resourceName string) (
 
 func (k *KubernetesConfigProvider) GetInstanceOperator(instanceId string) (*InstanceOperator, error) {
 	envVar := fmt.Sprintf("KAPETA_INSTANCE_OPERATOR_%s", toEnvName(instanceId))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		instanceOperator := &InstanceOperator{}
 		err := json.Unmarshal([]byte(value), instanceOperator)
 		if err != nil {
@@ -186,7 +188,7 @@ func (k *KubernetesConfigProvider) GetInstanceOperator(instanceId string) (*Inst
 
 func (k *KubernetesConfigProvider) GetInstancesForProvider(resourceName string) ([]*BlockInstanceDetails, error) {
 	envVar := fmt.Sprintf("KAPETA_INSTANCES_FOR_PROVIDER_%s", toEnvName(resourceName))
-	if value, exists := os.LookupEnv(envVar); exists {
+	if value, exists := k.LookupEnv(envVar); exists {
 		instanceOperators := make([]*BlockInstanceDetails, 0)
 		err := json.Unmarshal([]byte(value), &instanceOperators)
 		if err != nil {
