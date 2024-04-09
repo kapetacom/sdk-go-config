@@ -33,7 +33,7 @@ type KubernetesConfigProvider struct {
 
 // NewKubernetesConfigProvider creates a new instance of KubernetesConfigProvider
 func NewKubernetesConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) ConfigProvider {
-	envConfig, _ := cfg.ReadConfigFile()
+	envConfig := cfg.ReadConfigFile()
 	return &KubernetesConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
 			BlockRef:                 blockRef,

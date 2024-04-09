@@ -43,7 +43,7 @@ type LocalConfigProvider struct {
 
 // NewLocalConfigProvider creates an instance of LocalConfigProvider
 func NewLocalConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) *LocalConfigProvider {
-	envConfig, _ := cfg.ReadConfigFile()
+	envConfig := cfg.ReadConfigFile()
 
 	localProvider := &LocalConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
