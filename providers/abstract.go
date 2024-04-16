@@ -4,6 +4,7 @@
 package providers
 
 import (
+	"encoding/json"
 	"github.com/kapetacom/schemas/packages/go/model"
 	"os"
 )
@@ -71,7 +72,7 @@ type Identity struct {
 // ResourceInfo struct represents information about a resource
 type ResourceInfo struct {
 	Host        string                 `json:"host"`
-	Port        string                 `json:"port"`
+	Port        json.Number            `json:"port"`
 	Type        string                 `json:"type"`
 	Protocol    string                 `json:"protocol"`
 	Options     map[string]interface{} `json:"options"`
