@@ -129,7 +129,7 @@ func TestK8sGetServiceAddress(t *testing.T) {
 
 func TestK8sGetResourceInfo(t *testing.T) {
 	os.Setenv("KAPETA_CONSUMER_RESOURCE_FOO_REST", "{\"host\": \"10.0.0.1\", \"port\": \"8080\"}")
-	os.Setenv("KAPETA_CONSUMER_RESOURCE_BAR_GRPC", "{\"host\": \"10.0.0.2\", \"port\": \"8081\"}")
+	os.Setenv("KAPETA_CONSUMER_RESOURCE_BAR_GRPC", "{\"host\": \"10.0.0.2\", \"port\": 8081}")
 
 	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
 		"type": "kubernetes",
