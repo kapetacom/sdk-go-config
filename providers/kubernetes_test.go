@@ -4,6 +4,7 @@
 package providers
 
 import (
+	"encoding/json"
 	"os"
 	"testing"
 
@@ -137,12 +138,12 @@ func TestK8sGetResourceInfo(t *testing.T) {
 	info, err := provider.GetResourceInfo("foo", "rest", "foo")
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.1", info.Host)
-	assert.Equal(t, "8080", info.Port)
+	assert.Equal(t, json.Number("8080"), info.Port)
 
 	info, err = provider.GetResourceInfo("foo", "grpc", "bar")
 	assert.NoError(t, err)
 	assert.Equal(t, "10.0.0.2", info.Host)
-	assert.Equal(t, "8081", info.Port)
+	assert.Equal(t, json.Number("8081"), info.Port)
 
 	_, err = provider.GetResourceInfo("foo", "rest", "baz")
 	assert.Error(t, err)
