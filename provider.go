@@ -21,12 +21,15 @@ type InstanceValue struct {
 }
 
 type Config struct {
-	provider  providers.ConfigProvider
+	mu       sync.Mutex
+	provider providers.ConfigProvider
+
 	callbacks []func(providers.ConfigProvider)
 	once      sync.Once
 }
 
 // TODO: See if we can remove this global variable
+var muConfig sync.Mutex
 var CONFIG Config
 
 const (
@@ -42,6 +45,8 @@ const (
 
 // GetProvider returns the configured provider or panics if it's not initialized
 func GetProvider() providers.ConfigProvider {
+	muConfig.Lock()
+	defer muConfig.Unlock()
 	if CONFIG.provider == nil {
 		panic("Configuration not yet initialized, call Init('path to kapeta.yml') first")
 	}
@@ -56,6 +61,8 @@ func getEnvOrDefault(envVarName, defaultValue string) string {
 }
 
 func (c *Config) OnReady(callback func(providers.ConfigProvider)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	c.once.Do(func() {
 		if c.provider != nil {
 			callback(c.provider)
@@ -66,10 +73,15 @@ func (c *Config) OnReady(callback func(providers.ConfigProvider)) {
 }
 
 func (c *Config) IsReady() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	return c.provider != nil
 }
 
 func (c *Config) GetProvider() providers.ConfigProvider {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
 	if c.provider == nil {
 		panic("Configuration not yet initialized")
 	}
@@ -98,6 +110,9 @@ func (c *Config) getInstanceHost(instanceID string) (string, error) {
 
 // Init initializes the configuration provider based on the kapeta.yml file in the given block directory
 func Init(blockDir string) (providers.ConfigProvider, error) {
+	muConfig.Lock()
+	defer muConfig.Unlock()
+
 	if CONFIG.provider != nil {
 		return CONFIG.provider, nil
 	}

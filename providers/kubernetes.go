@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	cfg "github.com/kapetacom/sdk-go-config/config"
 	"strings"
+	"sync"
+
+	cfg "github.com/kapetacom/sdk-go-config/config"
 )
 
 const DEFAULT_SERVER_PORT_TYPE = "rest"
@@ -27,7 +29,9 @@ func toEnvName(name string) string {
 // KubernetesConfigProvider implements the ConfigProvider interface
 type KubernetesConfigProvider struct {
 	AbstractConfigProvider
+	muConfig      sync.Mutex
 	configuration map[string]interface{}
+	muHosts       sync.Mutex
 	instanceHosts map[string]string
 }
 
@@ -103,6 +107,8 @@ func (k *KubernetesConfigProvider) GetProviderId() string {
 
 // getConfiguration is a private method to get the configuration value from the environment variable
 func (k *KubernetesConfigProvider) getConfiguration(path string, defaultValue interface{}) interface{} {
+	k.muConfig.Lock()
+	defer k.muConfig.Unlock()
 	if k.configuration == nil {
 		envVar := "KAPETA_INSTANCE_CONFIG"
 		if value, exists := k.LookupEnv(envVar); exists {
@@ -140,6 +146,8 @@ func (k *KubernetesConfigProvider) GetOrDefault(path string, defaultValue interf
 
 // GetInstanceHost returns the hostname for the given instance ID
 func (k *KubernetesConfigProvider) GetInstanceHost(instanceID string) (string, error) {
+	k.muHosts.Lock()
+	defer k.muHosts.Unlock()
 	if k.instanceHosts == nil {
 		if blockHosts, exists := k.LookupEnv("KAPETA_BLOCK_HOSTS"); exists {
 			err := json.Unmarshal([]byte(blockHosts), &k.instanceHosts)

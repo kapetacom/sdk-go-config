@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 
 	"github.com/kapetacom/schemas/packages/go/model"
@@ -35,6 +36,7 @@ type AssetWrapper[T any] struct {
 // LocalConfigProvider struct represents the local config provider
 type LocalConfigProvider struct {
 	AbstractConfigProvider
+	mu            sync.Mutex
 	configuration map[string]interface{}
 	cfg           *cfg.ClusterConfig
 	GetPlan       func() (*model.Plan, error)
@@ -218,11 +220,15 @@ func (l *LocalConfigProvider) GetInstanceHost(instanceID string) (string, error)
 
 // GetConfig gets the configuration value for the specified path
 func (l *LocalConfigProvider) GetConfig(path string) interface{} {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	return l.configuration[path]
 }
 
 // GetOrDefault gets the configuration value for the specified path, or a default value if not found
 func (l *LocalConfigProvider) GetOrDefault(path string, defaultValue interface{}) interface{} {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	if value, ok := l.configuration[path]; ok {
 		return value
 	}
