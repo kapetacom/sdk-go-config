@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 	"sync"
 
@@ -30,13 +31,13 @@ func toEnvName(name string) string {
 type KubernetesConfigProvider struct {
 	AbstractConfigProvider
 	muConfig      sync.Mutex
-	configuration map[string]interface{}
+	configuration map[string]any
 	muHosts       sync.Mutex
 	instanceHosts map[string]string
 }
 
 // NewKubernetesConfigProvider creates a new instance of KubernetesConfigProvider
-func NewKubernetesConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]interface{}) ConfigProvider {
+func NewKubernetesConfigProvider(blockRef, systemID, instanceID string, blockDefinition map[string]any) ConfigProvider {
 	envConfig := cfg.ReadConfigFile()
 	return &KubernetesConfigProvider{
 		AbstractConfigProvider: AbstractConfigProvider{
@@ -105,42 +106,93 @@ func (k *KubernetesConfigProvider) GetProviderId() string {
 	return "kubernetes"
 }
 
-// getConfiguration is a private method to get the configuration value from the environment variable
-func (k *KubernetesConfigProvider) getConfiguration(path string, defaultValue interface{}) interface{} {
+// fixJSONEscapes normalizes common JSON escape issues found in environment variables.
+func (k *KubernetesConfigProvider) fixJSONEscapes(jsonStr string) string {
+	replacements := map[string]string{
+		`\\n`:  "\n",
+		`\\t`:  "\t",
+		`\\r`:  "\r",
+		`\'`:   `"`,
+		`\\\"`: `"`,
+		`\\'`:  `'`,
+	}
+
+	for old, newVal := range replacements {
+		jsonStr = strings.ReplaceAll(jsonStr, old, newVal)
+	}
+
+	// Remove surrounding quotes that shells might add
+	if len(jsonStr) >= 2 {
+		first, last := jsonStr[0], jsonStr[len(jsonStr)-1]
+		if (first == '"' && last == '"') || (first == '\'' && last == '\'') {
+			jsonStr = jsonStr[1 : len(jsonStr)-1]
+		}
+	}
+
+	return jsonStr
+}
+
+// fixJSONSyntax removes common JSON syntax errors such as trailing commas.
+func (k *KubernetesConfigProvider) fixJSONSyntax(jsonStr string) string {
+	// Regex handles trailing commas before closing braces/brackets (even across newlines)
+	re := regexp.MustCompile(`,\s*(\n\s*)?([\]}])`)
+	return re.ReplaceAllString(jsonStr, "${1}${2}")
+}
+
+// parseJSONSafely attempts to parse the given JSON string, applying automatic cleanup if needed.
+func (k *KubernetesConfigProvider) parseJSONSafely(value string) (map[string]any, bool) {
+	var result map[string]any
+
+	if json.Valid([]byte(value)) && json.Unmarshal([]byte(value), &result) == nil {
+		return result, true
+	}
+
+	// Try with cleanup
+	fixed := k.fixJSONSyntax(k.fixJSONEscapes(value))
+	if !json.Valid([]byte(fixed)) {
+		return nil, false
+	}
+
+	if err := json.Unmarshal([]byte(fixed), &result); err != nil {
+		return nil, false
+	}
+
+	return result, true
+}
+
+// getConfiguration retrieves configuration from the environment, falling back to a default value.
+func (k *KubernetesConfigProvider) getConfiguration(path string, defaultValue any) any {
 	k.muConfig.Lock()
 	defer k.muConfig.Unlock()
+
 	if k.configuration == nil {
 		envVar := "KAPETA_INSTANCE_CONFIG"
-		if value, exists := k.LookupEnv(envVar); exists {
-			err := json.Unmarshal([]byte(value), &k.configuration)
-			if err != nil {
-				panic(fmt.Sprintf("Invalid JSON in environment variable: %s", envVar))
-			}
-		} else {
-			fmt.Printf("Missing environment variable for instance configuration: %s\n", envVar)
+		value, exists := k.LookupEnv(envVar)
+		if !exists {
 			return defaultValue
 		}
 
-		if k.configuration == nil {
-			k.configuration = make(map[string]interface{})
+		value = strings.TrimSpace(value)
+		config, ok := k.parseJSONSafely(value)
+		if !ok {
+			return defaultValue
 		}
+		k.configuration = config
 	}
 
-	result := k.configuration[path]
-	if result == nil {
-		return defaultValue
+	if result, ok := k.configuration[path]; ok {
+		return result
 	}
-
-	return result
+	return defaultValue
 }
 
 // Get is an implementation of the ConfigProvider interface to get the configuration value from the object path
-func (k *KubernetesConfigProvider) Get(path string) interface{} {
+func (k *KubernetesConfigProvider) Get(path string) any {
 	return k.getConfiguration(path, nil)
 }
 
 // GetOrDefault is an implementation of the ConfigProvider interface to get the configuration value from the object path with a default value
-func (k *KubernetesConfigProvider) GetOrDefault(path string, defaultValue interface{}) interface{} {
+func (k *KubernetesConfigProvider) GetOrDefault(path string, defaultValue any) any {
 	return k.getConfiguration(path, defaultValue)
 }
 
