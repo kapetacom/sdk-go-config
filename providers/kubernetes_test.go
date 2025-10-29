@@ -178,6 +178,79 @@ func TestK8sGetOrDefault(t *testing.T) {
 	assert.Equal(t, "qux", value)
 }
 
+func TestK8sGetWithEscapedJSON(t *testing.T) {
+	// Test with single quotes (common shell escaping issue)
+	os.Setenv("KAPETA_INSTANCE_CONFIG", `'{"test": "value"}'`)
+	defer os.Unsetenv("KAPETA_INSTANCE_CONFIG")
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
+		"type": "kubernetes",
+	})
+
+	value := provider.Get("test")
+	assert.Equal(t, "value", value)
+}
+
+func TestK8sGetWithInvalidJSON(t *testing.T) {
+	// Test with invalid JSON that should fail gracefully
+	os.Setenv("KAPETA_INSTANCE_CONFIG", `{"invalid": json}`)
+	defer os.Unsetenv("KAPETA_INSTANCE_CONFIG")
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
+		"type": "kubernetes",
+	})
+
+	value := provider.Get("invalid")
+	assert.Nil(t, value)
+}
+
+func TestK8sGetWithTrailingComma(t *testing.T) {
+	// Test with JSON that has trailing comma (common issue)
+	os.Setenv("KAPETA_INSTANCE_CONFIG", `{"test": "value",}`)
+	defer os.Unsetenv("KAPETA_INSTANCE_CONFIG")
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
+		"type": "kubernetes",
+	})
+
+	value := provider.Get("test")
+	assert.Equal(t, "value", value)
+}
+
+func TestK8sGetWithComplexJSONAndTrailingComma(t *testing.T) {
+	// Test with complex JSON that has trailing comma and newlines
+	jsonStr := `{
+		"service1": {"url": "http://localhost:3000"},
+		"service2": {"url": "http://localhost:4000"},
+	}`
+	os.Setenv("KAPETA_INSTANCE_CONFIG", jsonStr)
+	defer os.Unsetenv("KAPETA_INSTANCE_CONFIG")
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
+		"type": "kubernetes",
+	})
+
+	service1 := provider.Get("service1")
+	assert.NotNil(t, service1)
+
+	service1Map := service1.(map[string]interface{})
+	assert.Equal(t, "http://localhost:3000", service1Map["url"])
+}
+
+func TestK8sGetWithLiteralNewlines(t *testing.T) {
+	// Test with JSON that contains literal \n characters (matches your exact situation)
+	jsonStr := "{\n    \"test\": \"value\",\n}"
+	os.Setenv("KAPETA_INSTANCE_CONFIG", jsonStr)
+	defer os.Unsetenv("KAPETA_INSTANCE_CONFIG")
+
+	provider := NewKubernetesConfigProvider("block-ref", "system-id", "instance-id", map[string]interface{}{
+		"type": "kubernetes",
+	})
+
+	value := provider.Get("test")
+	assert.Equal(t, "value", value)
+}
+
 func TestK8sGetInstanceHost(t *testing.T) {
 	os.Setenv("KAPETA_BLOCK_HOSTS", "{\"instance-id\": \"10.0.0.1\"}")
 
